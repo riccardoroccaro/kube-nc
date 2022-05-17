@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-pvc
+  namespace: nextcloud
+spec:
+  storageClassName: longhorn-1-replica
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-deployment
+  namespace: nextcloud
+  labels:
+    app: nextcloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextcloud
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: nextcloud
+        image: nextcloud:24.0.0
+        imagePullPolicy: IfNotPresent
+        env:
+        # #Config
+        - name: NEXTCLOUD_TRUSTED_DOMAINS
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_domain
+        # - name: NEXTCLOUD_DB_TYPE
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: nextcloud-config
+        #       key: nextcloud_db_type
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_db_name
+        - name: MYSQL_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_db_host
+        # - name: NEXTCLOUD_MYSQL_UTF8MB4
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: nextcloud-config
+        #       key: nextcloud_mysql_utf8mb4
+        # - name: NEXTCLOUD_REDIS_ENABLED
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: nextcloud-config
+        #       key: nextcloud_redis_enabled
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_redis_host
+        # #Secrets
+        - name: NEXTCLOUD_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-basic-auth
+              key: username
+        - name: NEXTCLOUD_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-basic-auth
+              key: password
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: password
+        ports:
+        - name: http
+          containerPort: 80
+        # resources:
+        #   requests:
+        #     memory: 512Mi
+        #     cpu: 300m
+        #   limits:
+        #     memory: 1024Mi
+        #     cpu: 600m
+        # readinessProbe:
+        #   initialDelaySeconds: 30
+        #   failureThreshold: 20
+        #   timeoutSeconds: 5
+        #   exec:
+        #     command:
+        #     - /usr/bin/healthcheck
+        # livenessProbe:
+        #   exec:
+        #     command:
+        #     - /usr/bin/healthcheck
+        #   initialDelaySeconds: 30
+        #   timeoutSeconds: 3
+        #   successThreshold: 1
+        #   failureThreshold: 15
+        volumeMounts:
+          - mountPath: /var/www/html
+            name: nextcloud-volume
+      volumes:
+        - name: nextcloud-volume
+          persistentVolumeClaim:
+            claimName: nextcloud-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-service
+  namespace: nextcloud
+spec:
+  selector:
+    app: nextcloud
+  ports:
+    - name: nextcloud
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nextcloud-ingress
+  namespace: nextcloud
+spec:
+  rules:
+    - host: nextcloud.r0cc4rd0.rar
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name:  nextcloud-service
+                port:
+                  number: 80

@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: nextcloud
+spec:
+  storageClassName: longhorn-1-replica
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-backup-pvc
+  namespace: nextcloud
+spec:
+  storageClassName: longhorn-1-replica
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb-deployment
+  namespace: nextcloud
+  labels:
+    app: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: mariadb
+        image: mariadb:10.7.3
+        imagePullPolicy: IfNotPresent
+        env:
+        #Config
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_db_name
+        #Secrets
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-root-password
+              key: password
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: password
+        ports:
+        - name: http
+          containerPort: 3306
+        # resources:
+        #   requests:
+        #     memory: 512Mi
+        #     cpu: 300m
+        #   limits:
+        #     memory: 1024Mi
+        #     cpu: 600m
+        volumeMounts:
+          - mountPath: /var/lib/mysql
+            name: db-volume
+          - mountPath: /root/backup
+            name: db-backup-volume
+      volumes:
+        - name: db-volume
+          persistentVolumeClaim:
+            claimName: db-pvc
+        - name: db-backup-volume
+          persistentVolumeClaim:
+            claimName: db-backup-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+  namespace: nextcloud
+spec:
+  selector:
+    app: mariadb
+  ports:
+    - name: mariadb
+      protocol: TCP
+      port: 3306
+      targetPort: 3306
+  type: ClusterIP

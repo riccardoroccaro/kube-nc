@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-volume
+  namespace: longhorn-system
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-deployment
+  namespace: longhorn-system
+  labels:
+    app: nfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs
+  template:
+    metadata:
+      labels:
+        app: nfs
+    spec:
+      volumes:
+      - name: nfs-volume
+        persistentVolumeClaim:
+          claimName: nfs-volume
+      restartPolicy: Always
+      containers:
+      - name: longhorn-test-nfs-container
+        image: longhornio/nfs-ganesha:latest
+        imagePullPolicy: Always
+        env:
+        - name: EXPORT_ID
+          value: "14"
+        - name: EXPORT_PATH
+          value: /opt/backupstore
+        - name: PSEUDO_PATH
+          value: /opt/backupstore
+        - name: NFS_DISK_IMAGE_SIZE_MB
+          value: "20480"
+        command: ["bash", "-c", "chmod 700 /opt/backupstore && /opt/start_nfs.sh | tee /var/log/ganesha.log"]
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN", "DAC_READ_SEARCH"]
+        volumeMounts:
+        - name: nfs-volume
+          mountPath: "/opt/backupstore"
+        livenessProbe:
+          exec:
+            command: ["bash", "-c", "grep \"No export entries found\" /var/log/ganesha.log > /dev/null 2>&1 ; [ $? -ne 0 ]"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 4
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: longhorn-test-nfs-svc
+  namespace: longhorn-system
+spec:
+  selector:
+    app: longhorn-test-nfs
+  clusterIP: None
+  ports:
+  - name: notnecessary
+    port: 1234
+    targetPort: 1234

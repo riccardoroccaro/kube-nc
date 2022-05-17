@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextcloud-config
+  namespace: nextcloud
+data:
+  nextcloud_domain: "nextcloud.r0cc4rd0.rar"
+  nextcloud_db_type: "mysql"
+  nextcloud_db_name: "nextcloud"
+  nextcloud_db_host: "mariadb-service.nextcloud.svc"
+  nextcloud_mysql_utf8mb4: "true"
+  nextcloud_redis_enabled: "true"
+  nextcloud_redis_host: "redis-service.nextcloud.svc"
