@@ -1,0 +1,217 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-nc-service-account
+  namespace: nextcloud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nextcloud
+  name: kube-nc-backup-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kube-nc-backup-role-binding
+  namespace: nextcloud
+subjects:
+- kind: ServiceAccount
+  name: kube-nc-service-account
+  namespace: nextcloud
+roleRef:
+  kind: Role
+  name: kube-nc-backup-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: nextcloud
+  name: snapshots-cron-job
+spec:
+  schedule: "30 23 * * 0-5"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 15
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: kube-nc-service-account
+          containers:
+          - name: kube-nc-backup
+            image: r0cc4rd0/kube-nc-backup:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: BACKUP_TYPE
+              value: "SNAPSHOT"
+            # Config
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: namespace
+            - name: NEXTCLOUD_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_app_name
+            - name: NEXTCLOUD_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_volume_name
+            - name: MARIADB_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_app_name
+            - name: MARIADB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_db_host
+            - name: MARIADB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_port
+            - name: MARIADB_ACTUAL_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_actual_volume_name
+            - name: MARIADB_BACKUP_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_backup_volume_name
+            - name: MARIADB_BACKUP_FILE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_backup_file_path
+            - name: LONGHORN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: longhorn_url
+            - name: NR_SNAPSHOTS_TO_RETAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nr_snapshots_to_retain
+            - name: NR_BACKUPS_TO_RETAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nr_backups_to_retain
+            # Secret
+            - name: MARIADB_DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-root-password
+                  key: password
+          restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: nextcloud
+  name: backups-cron-job
+spec:
+  schedule: "30 23 * * 6"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 15
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: kube-nc-service-account
+          containers:
+          - name: kube-nc-backup
+            image: r0cc4rd0/kube-nc-backup:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: BACKUP_TYPE
+              value: "FULL-BACKUP"
+            # Config
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: namespace
+            - name: NEXTCLOUD_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_app_name
+            - name: NEXTCLOUD_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_volume_name
+            - name: MARIADB_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_app_name
+            - name: MARIADB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nextcloud_db_host
+            - name: MARIADB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_port
+            - name: MARIADB_ACTUAL_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_actual_volume_name
+            - name: MARIADB_BACKUP_VOLUME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_backup_volume_name
+            - name: MARIADB_BACKUP_FILE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: mariadb_backup_file_path
+            - name: LONGHORN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: longhorn_url
+            - name: NR_SNAPSHOTS_TO_RETAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nr_snapshots_to_retain
+            - name: NR_BACKUPS_TO_RETAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: nextcloud-config
+                  key: nr_backups_to_retain
+            # Secret
+            - name: MARIADB_DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-root-password
+                  key: password
+          restartPolicy: Never

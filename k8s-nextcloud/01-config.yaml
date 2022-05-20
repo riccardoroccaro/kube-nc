@@ -4,10 +4,20 @@ metadata:
   name: nextcloud-config
   namespace: nextcloud
 data:
+  # Shared config
   nextcloud_domain: "nextcloud.r0cc4rd0.rar"
-  nextcloud_db_type: "mysql"
   nextcloud_db_name: "nextcloud"
   nextcloud_db_host: "mariadb-service.nextcloud.svc"
-  nextcloud_mysql_utf8mb4: "true"
-  nextcloud_redis_enabled: "true"
   nextcloud_redis_host: "redis-service.nextcloud.svc"
+  # Backup config
+  namespace: "nextcloud"
+  nextcloud_app_name: "nextcloud"
+  nextcloud_volume_name: "nextcloud-pvc"
+  mariadb_app_name: "mariadb"
+  mariadb_port: "3306"
+  mariadb_actual_volume_name: "db-pvc"
+  mariadb_backup_volume_name: "db-backup-pvc"
+  mariadb_backup_file_path: "/root/backup/backup.sql"
+  longhorn_url: "http://longhorn-frontend.longhorn-system.svc/v1"
+  nr_snapshots_to_retain: "30"
+  nr_backups_to_retain: "4"

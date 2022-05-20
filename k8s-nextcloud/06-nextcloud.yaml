@@ -9,7 +9,7 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 3Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -40,31 +40,26 @@ spec:
             configMapKeyRef:
               name: nextcloud-config
               key: nextcloud_domain
-        # - name: NEXTCLOUD_DB_TYPE
-        #   valueFrom:
-        #     configMapKeyRef:
-        #       name: nextcloud-config
-        #       key: nextcloud_db_type
-        - name: MYSQL_DATABASE
-          valueFrom:
-            configMapKeyRef:
-              name: nextcloud-config
-              key: nextcloud_db_name
         - name: MYSQL_HOST
           valueFrom:
             configMapKeyRef:
               name: nextcloud-config
               key: nextcloud_db_host
-        # - name: NEXTCLOUD_MYSQL_UTF8MB4
-        #   valueFrom:
-        #     configMapKeyRef:
-        #       name: nextcloud-config
-        #       key: nextcloud_mysql_utf8mb4
-        # - name: NEXTCLOUD_REDIS_ENABLED
-        #   valueFrom:
-        #     configMapKeyRef:
-        #       name: nextcloud-config
-        #       key: nextcloud_redis_enabled
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: nextcloud-config
+              key: nextcloud_db_name
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-basic-auth
+              key: password
         - name: REDIS_HOST
           valueFrom:
             configMapKeyRef:
@@ -81,16 +76,6 @@ spec:
             secretKeyRef:
               name: nextcloud-basic-auth
               key: password
-        - name: MYSQL_USER
-          valueFrom:
-            secretKeyRef:
-              name: mariadb-basic-auth
-              key: username
-        - name: MYSQL_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mariadb-basic-auth
-              key: password
         ports:
         - name: http
           containerPort: 80
@@ -101,23 +86,17 @@ spec:
         #   limits:
         #     memory: 1024Mi
         #     cpu: 600m
-        # readinessProbe:
-        #   initialDelaySeconds: 30
-        #   failureThreshold: 20
-        #   timeoutSeconds: 5
-        #   exec:
-        #     command:
-        #     - /usr/bin/healthcheck
-        # livenessProbe:
-        #   exec:
-        #     command:
-        #     - /usr/bin/healthcheck
-        #   initialDelaySeconds: 30
-        #   timeoutSeconds: 3
-        #   successThreshold: 1
-        #   failureThreshold: 15
         volumeMounts:
-          - mountPath: /var/www/html
+          - mountPath: /var/www/html/custom_apps
+            name: nextcloud-volume
+        volumeMounts:
+          - mountPath: /var/www/html/config
+            name: nextcloud-volume
+        volumeMounts:
+          - mountPath: /var/www/html/data
+            name: nextcloud-volume
+        volumeMounts:
+          - mountPath: /var/www/html/themes
             name: nextcloud-volume
       volumes:
         - name: nextcloud-volume
