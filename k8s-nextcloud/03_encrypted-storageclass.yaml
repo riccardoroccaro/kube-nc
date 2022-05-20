@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-pvc
+  namespace: nextcloud
+stringData:
+  CRYPTO_KEY_VALUE: "Password4ActualMariaDBVolume"
+  CRYPTO_KEY_PROVIDER: "secret" # Don't change
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-backup-pvc
+  namespace: nextcloud
+stringData:
+  CRYPTO_KEY_VALUE: "Password4BackupMariaDBVolume"
+  CRYPTO_KEY_PROVIDER: "secret" # Don't change
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nextcloud-pvc
+  namespace: nextcloud
+stringData:
+  CRYPTO_KEY_VALUE: "Password4NextcloudVolume"
+  CRYPTO_KEY_PROVIDER: "secret" # Don't change
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: longhorn-1-replica
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "2880"
+  fromBackup: ""
+  fsType: "ext4"
+  encrypted: "true"
+  csi.storage.k8s.io/provisioner-secret-name: ${pvc.name}
+  csi.storage.k8s.io/provisioner-secret-namespace: ${pvc.namespace}
+  csi.storage.k8s.io/node-publish-secret-name: ${pvc.name}
+  csi.storage.k8s.io/node-publish-secret-namespace: ${pvc.namespace}
+  csi.storage.k8s.io/node-stage-secret-name: ${pvc.name}
+  csi.storage.k8s.io/node-stage-secret-namespace: ${pvc.namespace}

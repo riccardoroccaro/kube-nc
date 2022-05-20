@@ -47,6 +47,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app: kube-nc-backup
         spec:
           serviceAccountName: kube-nc-service-account
           containers:
@@ -138,6 +141,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app: kube-nc-backup
         spec:
           serviceAccountName: kube-nc-service-account
           containers:

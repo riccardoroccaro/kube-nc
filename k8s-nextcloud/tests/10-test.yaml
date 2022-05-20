@@ -39,6 +39,8 @@ kind: Pod
 metadata:
   name: kube-nc-backup
   namespace: nextcloud
+  labels:
+    app: kube-nc-backup
 spec:
   serviceAccountName: kube-nc-service-account
   restartPolicy: Never
@@ -46,8 +48,6 @@ spec:
   - name: kube-nc-backup
     image: r0cc4rd0/kube-nc-backup:in-cluster-k8s-api-latest
     imagePullPolicy: Always
-    # command: ["bash"]
-    # args: ["-c", "sleep 100000000"]
     env:
     - name: BACKUP_TYPE
       value: "FULL-BACKUP"
